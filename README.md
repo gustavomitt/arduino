@@ -1,4 +1,4 @@
 # arduino
-Arduino programs
+## Arduino programs
 
-1 Happy plant
+1. Happy plant
