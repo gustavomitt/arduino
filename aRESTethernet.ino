@@ -34,7 +34,7 @@ int humidity = 0;  // variable to store the value coming from the humidity senso
 //Varibles of physical connections
 int sensorPin = A5;    // select the input pin for the sensor
 int activatePin = A1;    // select the pin to turn on the sensor
-int pumpPin = A3;     // select the pin to turn on the pump
+int pumpPin = 8;     // select the pin to turn on the pump
 
 void setup(void)
 {  
