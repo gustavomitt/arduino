@@ -53,8 +53,8 @@ void setup(void)
   rest.variable("humidity",&humidity);
 
   // Function to be exposed
-  rest.function("pumpOn",pumpOn);
-  rest.function("pumpOff",pumpOff);
+  //rest.function("pumpOn",pumpOn);
+  //rest.function("pumpOff",pumpOff);
   
   // Give name and ID to device
   rest.set_id("002");
@@ -99,9 +99,9 @@ void loop() {
 // Custom function accessible by the API
 int pumpOn() {
   digitalWrite(pumpPin,HIGH);
-  return "Pump On";
+  return 1;
 }
 int pumpOff() {
   digitalWrite(pumpPin,LOW);
-  return "Pump Off";
+  return 0;
 }
