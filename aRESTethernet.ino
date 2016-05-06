@@ -33,7 +33,7 @@ int humidity = 0;  // variable to store the value coming from the humidity senso
 
 //Varibles of physical connections
 int sensorPin = A5;    // select the input pin for the sensor
-int activatePin = A1;    // select the pin to turn on the sensor
+int activatePin = 7;    // select the pin to turn on the sensor
 int pumpPin = 8;     // select the pin to turn on the pump
 
 void setup(void)
@@ -53,7 +53,8 @@ void setup(void)
   rest.variable("humidity",&humidity);
 
   // Function to be exposed
-  rest.function("pump",pumpControl);
+  rest.function("pumpOn",pumpOn);
+  rest.function("pumpOff",pumpOff);
   
   // Give name and ID to device
   rest.set_id("002");
@@ -74,20 +75,17 @@ void setup(void)
   wdt_enable(WDTO_4S);
   
   // Setup events
-  t.every(30000, turnOnHumiditySensor); // Start humidity sensor every 30 seconds
-  t.after(1000, readHumiditySensor); // Read the humidity sensor value
-}
-
-void turnOnHumiditySensor()
-{
-  digitalWrite(activatePin,HIGH);
+  t.every(30000, readHumiditySensor); // Read humidity sensor every 30 seconds
 }
 
 void readHumiditySensor()
 {
+  digitalWrite(activatePin,HIGH);
+  delay(100);
   humidity = analogRead(sensorPin);// reading humidity sensor value
   digitalWrite(activatePin,LOW); //Turn off the humidity sensor
 }
+
 
 void loop() {  
   
@@ -99,11 +97,11 @@ void loop() {
 }
 
 // Custom function accessible by the API
-int pumpControl(String command) {
-  
-  // Get state from command
-  int state = command.toInt();
-  
-  digitalWrite(pumpPin,state);
-  return 1;
+int pumpOn() {
+  digitalWrite(pumpPin,HIGH);
+  return "Pump On";
+}
+int pumpOff() {
+  digitalWrite(pumpPin,LOW);
+  return "Pump Off";
 }
