@@ -20,7 +20,7 @@ Timer t;
 byte mac[] = { 0x90, 0xA2, 0xDA, 0x0E, 0xFE, 0x40 };
 
 // IP address in case DHCP fails
-IPAddress ip(192,168,2,230);
+IPAddress ip(192,168,2,130);
 
 // Ethernet server
 EthernetServer server(80);
