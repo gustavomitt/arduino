@@ -1,3 +1,6 @@
+# antes de iniciar
+As informações sensíveis devem ser entradas em um arquivo ```credentials.h``` que não será sincronizado
+.
 # modelo do credentials.h:
 ```
 // Syslog server connection info
