@@ -163,10 +163,6 @@ void pubConfig() {
   } else {
      Serial.println("Publish config: FAIL");
   }
-  for (int i = 0; i < nWidgets; i = i + 1) {
-      pubStatus(sTopic[i], stat[i]);
-      delay(150);
-  }
 }
 
 
@@ -182,11 +178,13 @@ void callback(const MQTT::Publish& sub) {
        stat[0] = stat0;
        digitalWrite(pin[0],newValue);
        pubStatus(sTopic[0], stat[0]);
+       syslog.log(LOG_INFO, "Bomba desligada por comando remoto.");
     } else {
        newValue = 1;
        stat[0] = stat1;
        digitalWrite(pin[0],newValue);
        pubStatus(sTopic[0], stat[0]);
+       syslog.log(LOG_INFO, "Bomba ligada por comando remoto");
        //newtime = millis();
        //oldtime = newtime;
        //while (newtime - oldtime < 10000) { // 10 sec
@@ -259,7 +257,7 @@ void loop() {
   }
 
   if( (estadoAtual == LOW) && ( x > umidadeMin) ){
-    syslog.log(LOG_INFO, "Ligando a bomba");
+    syslog.log(LOG_INFO, "Umidade baixa. Ligando a bomba");
     stat[0] = stat1;
     digitalWrite(pin[0],HIGH);
     pubStatus(sTopic[0], stat[0]);
@@ -267,7 +265,7 @@ void loop() {
   }
 
   if( (estadoAtual == HIGH) && ( x < umidadeMax) ){
-    syslog.log(LOG_INFO, "Desligando a bomba");
+    syslog.log(LOG_INFO, "Umidade alta. Desligando a bomba");
     stat[0] = stat0;
     digitalWrite(pin[0],LOW);
     pubStatus(sTopic[0], stat[0]);
