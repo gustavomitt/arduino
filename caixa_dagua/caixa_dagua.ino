@@ -18,7 +18,15 @@
 #include <WiFiUdp.h>
 #include <Syslog.h>
 #include "credentials.h"
+//Carrega a biblioteca do sensor ultrassonico
+#include <Ultrasonic.h>
 
+//Define os pinos para o trigger e echo
+#define pino_trigger 4
+#define pino_echo 5
+
+//Inicializa o sensor nos pinos definidos acima
+Ultrasonic ultrasonic(pino_trigger, pino_echo);
 
 
 // A UDP instance to let us send and receive packets over UDP
@@ -27,9 +35,9 @@ WiFiUDP udpClient;
 // Create a new syslog instance with LOG_info facility
 Syslog syslog(udpClient, SYSLOG_SERVER, SYSLOG_PORT, DEVICE_HOSTNAME, APP_NAME, LOG_INFO);
 
-// Parametros default de umidade
-const float umidadeMax = 620.0;
-const float umidadeMin = 660.0;
+// Parametros default de nível de água (distância em relação ao sensor)
+const float nivelMax = 10.0;
+const float nivelMin = 60.0;
 
 boolean publicar;
 
@@ -78,16 +86,10 @@ int    pin         [nWidgets];
 int    defaultVal  [nWidgets];
 bool   inverted    [nWidgets];
 
-int    valores     [10];
-int    activatePin = 4;            // GPIO4 - pino para ligar o sensor
+float    valores     [10];
 
 
 
-// Push notifications
-const char* host = "onesignal.com";
-WiFiClientSecure httpClient;
-const int httpsPort = 443;
-String url = "/api/v1/notifications";
 
 String setStatus ( String s ) {
   String stat = "{\"status\":\"" + s + "\"}";
@@ -99,24 +101,23 @@ String setStatus ( int s ) {
 }
 void initVar() {
   id    [0] = "0";
-  page  [0] = "Vaso";
+  page  [0] = "caixaDagua";
   descr [0] = "Bomba";
   widget[0] = "toggle";
-  pin[0] = 5;                                              // GPIO5 - toggle
+  pin[0] = 14;                                              // GPIO5 - toggle
   defaultVal[0] = 0;                                       // defaultVal status
   inverted[0] = false;
   sTopic[0]   = prefix + "/" + deviceID + "/bomba";
   color[0]   = "\"color\":\"black\"";                       // black, blue, green, orange, red, white, yellow (off - grey)
 
   id    [1] = "1";
-  page  [1] = "Vaso";
-  descr [1] = "Humidade";
+  page  [1] = "caixaDagua";
+  descr [1] = "NivelDaAgua";
   widget[1] = "small-badge";
   pin   [1] = A0;                                          // ADC
-  sTopic[1] = prefix + "/" + deviceID + "/Humidade";
+  sTopic[1] = prefix + "/" + deviceID + "/NivelDaAgua";
   badge [1] = "\"badge\":\"badge-calm\"";                  // see http://ionicframework.com/docs/components/#colors
   style [1]   = "\"style\":\"font-size:150%;\"";
-
 
   for (int i = 0; i < nWidgets; i++) {
     if (inverted[i]) {
@@ -131,7 +132,7 @@ void initVar() {
   }
 
   thing_config[0] = "{\"id\":\"" + id[0] + "\",\"page\":\"" + page[0]+"\",\"descr\":\"" + descr[0] + "\",\"widget\":\"" + widget[0] + "\",\"topic\":\"" + sTopic[0] + "\"," + color[0] + "}";   // GPIO switched On/Off by mobile widget toggle
-  thing_config[1] = "{\"id\":\"" + id[1] + "\",\"page\":\"" + page[1]+"\",\"descr\":\"" + descr[1] + "\",\"widget\":\"" + widget[1] + "\",\"topic\":\"" + sTopic[1] + "\"," + badge[1] + "," + style[1] + "}";  // Humidade
+  thing_config[1] = "{\"id\":\"" + id[1] + "\",\"page\":\"" + page[1]+"\",\"descr\":\"" + descr[1] + "\",\"widget\":\"" + widget[1] + "\",\"topic\":\"" + sTopic[1] + "\"," + badge[1] + "," + style[1] + "}";  // Nivel da Agua
 
 }
 // send confirmation
@@ -161,6 +162,7 @@ void pubConfig() {
      Serial.println("Publish config: Success");
   } else {
      Serial.println("Publish config: FAIL");
+     Serial.println();
   }
 }
 
@@ -184,19 +186,7 @@ void callback(const MQTT::Publish& sub) {
        digitalWrite(pin[0],newValue);
        pubStatus(sTopic[0], stat[0]);
        syslog.log(LOG_INFO, "Bomba ligada por comando remoto");
-       //newtime = millis();
-       //oldtime = newtime;
-       //while (newtime - oldtime < 10000) { // 10 sec
-       //  delay(100);
-       //  newtime =  millis();
-       //}
-       //newValue = 0;
-       //stat[0] = stat0;
-       //digitalWrite(pin[0],newValue);
-       //pubStatus(sTopic[0], stat[0]);
     }
-  } else if (sub.topic() == sTopic[1] + "/control") {
-     // ADC : nothing, display only
   }
 }
 
@@ -205,10 +195,6 @@ void setup() {
   WiFi.mode(WIFI_STA);
   pinMode(pin[0], OUTPUT);
   digitalWrite(pin[0],defaultVal[0]);
-  stat[1] = setStatus(analogRead(pin[1]));
-  // Init pin to activate humidity sensor
-  pinMode(activatePin,OUTPUT);
-  digitalWrite(activatePin,LOW);
 
   syslog.logMask(LOG_MASK(LOG_INFO) | LOG_MASK(LOG_ERR));
   rodada = 0;
@@ -217,7 +203,6 @@ void setup() {
 
   Serial.begin(115200);
   delay(10);
-  Serial.println();
   Serial.println();
   Serial.println("MQTT client started.");
   Serial.print("Free heap = ");
@@ -230,15 +215,13 @@ void loop() {
   newtime = millis();
   syslog.logf(LOG_DEBUG, "Begin loop at %lu milliseconds", newtime);
   if (newtime - oldtime > intervaloDeLeitura * 1000) {
-    syslog.log(LOG_INFO, "Iniciando nova leitura do sensor de umidade");
+    syslog.log(LOG_INFO, "Iniciando nova leitura do sensor de distancia");
     String mensagem = "Rodada:" + String(rodada);
     syslog.log(LOG_INFO, mensagem);
-    digitalWrite(activatePin,HIGH); // Liga o sensor
-    delay(100);
-    valores[rodada] = analogRead(pin[1]);
+    long microsec = ultrasonic.timing();
+    valores[rodada] = ultrasonic.convert(microsec, Ultrasonic::CM);
     mensagem = "Valor lido:" + String(valores[rodada]);
     syslog.log(LOG_INFO, mensagem);
-    digitalWrite(activatePin,LOW); // desliga o sensor
     if (rodada >= numeroDeLeituras) {
       x = 0.0;
       for(int i = 0; i < numeroDeLeituras; i++){
@@ -255,16 +238,16 @@ void loop() {
     oldtime = newtime;
   }
 
-  if( (stat[0] == stat0) && ( x > umidadeMin) ){
-    syslog.log(LOG_INFO, "Umidade baixa. Ligando a bomba");
+  if( (stat[0] == stat0) && ( x > nivelMin) ){
+    syslog.log(LOG_INFO, "Nivel baixo. Ligando a bomba");
     newValue = 1;
     stat[0] = stat1;
     digitalWrite(pin[0],newValue);
     pubStatus(sTopic[0], stat[0]);
   }
 
-  if( (stat[0] == stat1) && ( x < umidadeMax) ){
-    syslog.log(LOG_INFO, "Umidade alta. Desligando a bomba");
+  if( (stat[0] == stat1) && ( x < nivelMax) ){
+    syslog.log(LOG_INFO, "Nivel alto. Desligando a bomba");
     newValue = 0;
     stat[0] = stat0;
     digitalWrite(pin[0],newValue);
