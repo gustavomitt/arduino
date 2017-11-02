@@ -107,6 +107,7 @@ void initVar() {
   inverted[0] = false;
   sTopic[0]   = prefix + "/" + deviceID + "/bomba";
   color[0]   = "\"color\":\"black\"";                       // black, blue, green, orange, red, white, yellow (off - grey)
+  stat[0] = stat0;
 
   id    [1] = "1";
   page  [1] = "Vaso";
